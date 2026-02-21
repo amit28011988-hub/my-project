@@ -39,6 +39,75 @@ interface FacebookConfig {
   isConnected: boolean
 }
 
+// Trending Topics Categories with auto-generation prompts
+const trendingCategories = [
+  {
+    name: 'AI & Technology',
+    topics: [
+      'AI replacing jobs in 2024',
+      'ChatGPT and business automation',
+      'AI in healthcare revolution',
+      'Machine learning in finance',
+      'AI ethics and regulations',
+      'Generative AI tools',
+      'AI-powered marketing',
+      'The future of work with AI',
+    ],
+    imagePrompt: 'Futuristic AI technology background, neural network visualization, glowing blue and cyan digital circuits, artificial intelligence concept, abstract tech patterns, professional social media background, dark theme with bright accents',
+  },
+  {
+    name: 'Finance & Markets',
+    topics: [
+      'Stock market trends 2024',
+      'Crypto market updates',
+      'Interest rates impact',
+      'Real estate investing tips',
+      'Passive income strategies',
+      'Recession preparation',
+      'Federal Reserve decisions',
+      'Global market analysis',
+    ],
+    imagePrompt: 'Professional finance background, stock market charts with green and red candles, money flow visualization, dark background with golden accents, wealth and investment concept, elegant corporate style, trading floor atmosphere',
+  },
+  {
+    name: 'Geopolitics',
+    topics: [
+      'Global trade relations',
+      'US-China economic ties',
+      'EU policy changes',
+      'Emerging markets growth',
+      'Supply chain shifts',
+      'Energy sector dynamics',
+      'International sanctions impact',
+      'Diplomatic relations update',
+    ],
+    imagePrompt: 'World map with glowing connection lines, geopolitical concept, globe with digital network, dark navy blue background, international relations visualization, professional news style background, corporate and serious tone',
+  },
+  {
+    name: 'Defence & Security',
+    topics: [
+      'Defence technology advances',
+      'Cybersecurity threats 2024',
+      'Military innovation',
+      'Global security challenges',
+      'Aerospace defence systems',
+      'Drone technology evolution',
+      'National security strategies',
+      'Defence industry trends',
+    ],
+    imagePrompt: 'Military technology background, stealth aircraft silhouette, radar and defence systems, dark tactical colors with green accents, security concept, professional defence industry style, abstract geometric military patterns',
+  },
+]
+
+// Tier 1 countries optimal posting times (in UTC)
+const tier1PostingTimes = [
+  { time: '06:00', label: 'Morning (US East Coast / UK Morning)', description: '6 AM UTC - Targets US East Coast early risers & UK morning' },
+  { time: '10:00', label: 'Mid-Morning (US East / UK Midday)', description: '10 AM UTC - US East Coast morning & UK lunch time' },
+  { time: '14:00', label: 'Afternoon (US Morning / UK Afternoon)', description: '2 PM UTC - US West Coast morning & US East noon' },
+  { time: '18:00', label: 'Evening (US Afternoon / AU Morning)', description: '6 PM UTC - US afternoon & Australia morning' },
+  { time: '22:00', label: 'Night (US Evening / AU Day)', description: '10 PM UTC - US evening prime time' },
+]
+
 interface Template {
   id: number
   title: string
@@ -1887,11 +1956,29 @@ Save this thread for later 📌`
 
               {/* Quick Post */}
               <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h2 className="text-xl font-semibold mb-4">Quick Post</h2>
-                <p className="text-gray-600 mb-4">Generate and post a thread immediately to your connected accounts.</p>
+                <h2 className="text-xl font-semibold mb-4">Quick Post with Auto-Image</h2>
+                <p className="text-gray-600 mb-4">Generate thread with topic-based background image and post to Facebook.</p>
 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1">Topic</label>
+                  <label className="block text-sm font-medium mb-2">Select Topic Category</label>
+                  <select
+                    className="w-full py-2 px-3 border border-gray-200 rounded-lg focus:outline-none focus:border-black"
+                    value={scheduleForm.topic}
+                    onChange={(e) => setScheduleForm({ ...scheduleForm, topic: e.target.value })}
+                  >
+                    <option value="">-- Select a trending topic --</option>
+                    {trendingCategories.map((cat) => (
+                      <optgroup key={cat.name} label={cat.name}>
+                        {cat.topics.map((topic) => (
+                          <option key={topic} value={topic}>{topic}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1">Or Enter Custom Topic</label>
                   <input
                     type="text"
                     className="w-full py-2 px-3 border border-gray-200 rounded-lg focus:outline-none focus:border-black"
@@ -1902,8 +1989,14 @@ Save this thread for later 📌`
                 </div>
 
                 {currentThread && (
-                  <div className="mb-4 bg-black text-white p-3 rounded-lg text-sm whitespace-pre-line max-h-48 overflow-y-auto">
-                    {currentThread}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Generated Thread:</span>
+                      <span className="text-xs text-gray-500">First line = Main Post, Rest = Comments</span>
+                    </div>
+                    <div className="bg-black text-white p-3 rounded-lg text-sm whitespace-pre-line max-h-48 overflow-y-auto">
+                      {currentThread}
+                    </div>
                   </div>
                 )}
 
@@ -1916,13 +2009,142 @@ Save this thread for later 📌`
                     {isGenerating ? 'Generating...' : 'Generate Thread'}
                   </button>
                   <button
-                    onClick={() => currentThread && postNowToFacebook(currentThread)}
+                    onClick={async () => {
+                      if (!currentThread || !facebookConfig.isConnected) return
+                      setIsPostingNow(true)
+                      
+                      // Find the category for the topic to get image prompt
+                      const category = trendingCategories.find(cat => cat.topics.includes(threadTopic))
+                      const imagePrompt = category?.imagePrompt || 'Professional dark background, abstract geometric patterns, suitable for social media'
+                      
+                      try {
+                        // Generate background image
+                        const imgResponse = await fetch('/api/generate-image', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ prompt: imagePrompt, topic: threadTopic })
+                        })
+                        const imgResult = await imgResponse.json()
+                        
+                        // Split thread into main post and comments
+                        const lines = currentThread.split('\n').filter((l: string) => l.trim())
+                        const mainPost = lines[0]
+                        const comments = lines.slice(1)
+                        
+                        // Post to Facebook with image and comments
+                        const response = await fetch('/api/facebook/post', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            pageId: facebookConfig.pageId,
+                            accessToken: facebookConfig.accessToken,
+                            message: mainPost,
+                            imageBase64: imgResult.imageBase64,
+                            comments: comments
+                          })
+                        })
+                        
+                        const result = await response.json()
+                        if (result.success) {
+                          alert(`Posted successfully! ${result.commentsPosted} comments added.`)
+                        } else {
+                          alert(`Failed to post: ${result.error}`)
+                        }
+                      } catch (error) {
+                        alert('Failed to post. Please check your connection.')
+                      }
+                      setIsPostingNow(false)
+                    }}
                     disabled={isPostingNow || !currentThread || !facebookConfig.isConnected}
                     className="flex-1 py-2.5 bg-[#1877F2] text-white rounded-lg font-medium hover:bg-[#166FE5] transition-colors disabled:opacity-50"
                   >
-                    {isPostingNow ? 'Posting...' : 'Post to Facebook'}
+                    {isPostingNow ? 'Posting...' : 'Post with Image'}
                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* Tier 1 Posting Times */}
+            <div className="mt-8 bg-white rounded-xl p-6 border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold">Tier 1 Countries Posting Schedule</h2>
+                  <p className="text-gray-600 text-sm">Optimal times for US, UK, Canada, Australia audiences</p>
+                </div>
+                <button
+                  onClick={() => {
+                    // Auto-create 5 schedules for Tier 1 times
+                    const newSchedules: AutomationSchedule[] = tier1PostingTimes.map((time, index) => {
+                      const category = trendingCategories[index % trendingCategories.length]
+                      const topic = category.topics[Math.floor(Math.random() * category.topics.length)]
+                      return {
+                        id: Date.now() + index,
+                        name: `Auto Post ${index + 1} - ${time.label}`,
+                        topic: topic,
+                        frequency: 'daily' as const,
+                        customTimes: [time.time],
+                        nextRun: new Date().toISOString(),
+                        isActive: true,
+                        postToFacebook: true,
+                        postToTwitter: false,
+                        postToLinkedin: false,
+                        createdAt: new Date().toISOString(),
+                      }
+                    })
+                    saveSchedules([...schedules, ...newSchedules])
+                    alert('5 daily schedules created for Tier 1 countries!')
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Auto-Create 5 Daily Posts
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                {tier1PostingTimes.map((slot, index) => (
+                  <div key={slot.time} className="bg-gray-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-black mb-1">{slot.time}</div>
+                    <div className="text-sm font-medium text-gray-700">Post {index + 1}</div>
+                    <div className="text-xs text-gray-500 mt-1">{slot.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Trending Topics */}
+            <div className="mt-8 bg-white rounded-xl p-6 border border-gray-200">
+              <h2 className="text-xl font-semibold mb-4">Trending Topics (Auto-Updated)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {trendingCategories.map((category) => (
+                  <div key={category.name} className="border border-gray-200 rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <span className={`w-3 h-3 rounded-full ${
+                        category.name === 'AI & Technology' ? 'bg-blue-500' :
+                        category.name === 'Finance & Markets' ? 'bg-green-500' :
+                        category.name === 'Geopolitics' ? 'bg-purple-500' :
+                        'bg-red-500'
+                      }`}></span>
+                      {category.name}
+                    </h3>
+                    <div className="space-y-2">
+                      {category.topics.slice(0, 4).map((topic) => (
+                        <button
+                          key={topic}
+                          onClick={() => {
+                            setThreadTopic(topic)
+                            setScheduleForm({ ...scheduleForm, topic })
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm bg-gray-50 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          {topic}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
