@@ -2016,25 +2016,13 @@ Save this thread for later 📌`
                       if (!currentThread || !facebookConfig.isConnected) return
                       setIsPostingNow(true)
                       
-                      // Find the category for the topic to get image prompt
-                      const category = trendingCategories.find(cat => cat.topics.includes(threadTopic))
-                      const imagePrompt = category?.imagePrompt || 'Professional dark background, abstract geometric patterns, suitable for social media'
-                      
                       try {
-                        // Generate background image
-                        const imgResponse = await fetch('/api/generate-image', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ prompt: imagePrompt, topic: threadTopic })
-                        })
-                        const imgResult = await imgResponse.json()
-                        
                         // Split thread into main post and comments
                         const lines = currentThread.split('\n').filter((l: string) => l.trim())
                         const mainPost = lines[0]
                         const comments = lines.slice(1)
                         
-                        // Post to Facebook with image and comments
+                        // Post to Facebook (API handles image generation internally)
                         const response = await fetch('/api/facebook/post', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
@@ -2042,16 +2030,16 @@ Save this thread for later 📌`
                             pageId: facebookConfig.pageId,
                             accessToken: facebookConfig.accessToken,
                             message: mainPost,
-                            imageBase64: imgResult.imageBase64,
+                            topic: threadTopic,
                             comments: comments
                           })
                         })
                         
                         const result = await response.json()
                         if (result.success) {
-                          alert(`Posted successfully! ${result.commentsPosted} comments added.`)
+                          alert(`✓ ${result.message}\n\nDebug info:\n${result.debug?.join('\n')}`)
                         } else {
-                          alert(`Failed to post: ${result.error}`)
+                          alert(`✗ Failed: ${result.error}\n\nDebug: ${result.debug?.join('\n')}`)
                         }
                       } catch (error) {
                         alert('Failed to post. Please check your connection.')
