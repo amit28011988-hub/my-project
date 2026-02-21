@@ -6,24 +6,60 @@ export async function POST(request: NextRequest) {
     const { pageId, accessToken, message, topic, comments } = body
 
     if (!pageId || !accessToken) {
-      return NextResponse.json(
-        { success: false, error: 'Missing pageId or accessToken' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'Missing pageId or accessToken' }, { status: 400 })
     }
 
     const debugInfo: string[] = []
     let postId: string = ''
 
-    debugInfo.push(`Topic: ${topic || 'none'}`)
+    // Topic-based background images from Unsplash
+    const topicImages: Record<string, string> = {
+      'AI': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1080&h=1080&fit=crop',
+      'technology': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1080&h=1080&fit=crop',
+      'chatgpt': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1080&h=1080&fit=crop',
+      'agi': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1080&h=1080&fit=crop',
+      'finance': 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=1080&h=1080&fit=crop',
+      'crypto': 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=1080&h=1080&fit=crop',
+      'bitcoin': 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=1080&h=1080&fit=crop',
+      'market': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1080&h=1080&fit=crop',
+      'stock': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1080&h=1080&fit=crop',
+      'geopolitics': 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=1080&h=1080&fit=crop',
+      'world': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1080&h=1080&fit=crop',
+      'trade': 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=1080&h=1080&fit=crop',
+      'brics': 'https://images.unsplash.com/photo-1526470608268-f674ce90ebd4?w=1080&h=1080&fit=crop',
+      'defence': 'https://images.unsplash.com/photo-1580745089072-62fcfb4f9cb6?w=1080&h=1080&fit=crop',
+      'military': 'https://images.unsplash.com/photo-1580745089072-62fcfb4f9cb6?w=1080&h=1080&fit=crop',
+      'security': 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1080&h=1080&fit=crop',
+      'cyber': 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1080&h=1080&fit=crop',
+      'drone': 'https://images.unsplash.com/photo-1580745089072-62fcfb4f9cb6?w=1080&h=1080&fit=crop',
+      'nato': 'https://images.unsplash.com/photo-1580745089072-62fcfb4f9cb6?w=1080&h=1080&fit=crop',
+      'business': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1080&h=1080&fit=crop',
+      'default': 'https://images.unsplash.com/photo-1557683316-973673baf926?w=1080&h=1080&fit=crop'
+    }
 
-    // Try posting with an image from a public URL
-    // Using a simple dark background image
-    const imageUrl = 'https://images.unsplash.com/photo-1557683316-973673baf926?w=1080&h=1080&fit=crop'
+    // Find matching image based on topic keywords
+    let imageUrl = topicImages['default']
+    const topicLower = (topic || '').toLowerCase()
     
-    debugInfo.push('Attempting photo post with URL...')
+    for (const [key, url] of Object.entries(topicImages)) {
+      if (topicLower.includes(key)) {
+        imageUrl = url
+        break
+      }
+    }
     
-    // Method 1: Post photo using URL
+    debugInfo.push(`Topic: ${topic}`)
+    debugInfo.push(`Image: ${imageUrl}`)
+
+    // Combine main message with comments into single post
+    let fullMessage = message
+    if (comments && Array.isArray(comments) && comments.length > 0) {
+      fullMessage = message + '\n\n' + comments.join('\n')
+    }
+    
+    debugInfo.push(`Full message length: ${fullMessage.length} characters`)
+
+    // Post photo to Facebook with full message
     const photoUrl = `https://graph.facebook.com/v18.0/${pageId}/photos`
     
     const photoResponse = await fetch(photoUrl, {
@@ -31,29 +67,28 @@ export async function POST(request: NextRequest) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url: imageUrl,
-        caption: message,
+        caption: fullMessage,
         access_token: accessToken,
       }),
     })
 
     const photoResult = await photoResponse.json()
-    debugInfo.push(`Photo response status: ${photoResponse.status}`)
+    debugInfo.push(`Response status: ${photoResponse.status}`)
 
     if (photoResponse.ok && photoResult.id) {
-      debugInfo.push(`Photo uploaded successfully: ${photoResult.id}`)
       postId = photoResult.post_id || `${pageId}_${photoResult.id}`
+      debugInfo.push(`✓ Posted successfully: ${postId}`)
     } else {
       // Fallback to text-only post
-      debugInfo.push(`Photo failed: ${JSON.stringify(photoResult.error || photoResult)}`)
-      debugInfo.push('Falling back to text-only post...')
+      debugInfo.push(`Photo failed: ${photoResult.error?.message || 'unknown'}`)
       
       const feedUrl = `https://graph.facebook.com/v18.0/${pageId}/feed`
       const feedResponse = await fetch(feedUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: message,
-          access_token: accessToken,
+        body: JSON.stringify({ 
+          message: fullMessage, 
+          access_token: accessToken 
         }),
       })
       
@@ -68,62 +103,18 @@ export async function POST(request: NextRequest) {
       }
       
       postId = feedResult.id
-      debugInfo.push(`Text post created: ${postId}`)
-    }
-
-    // Post comments
-    const postedComments: string[] = []
-    const failedComments: string[] = []
-
-    if (comments && Array.isArray(comments) && comments.length > 0) {
-      debugInfo.push(`Attempting to post ${comments.length} comments to ${postId}`)
-      
-      for (let i = 0; i < comments.length; i++) {
-        const comment = comments[i]
-        if (!comment || !comment.trim()) continue
-        
-        try {
-          const commentUrl = `https://graph.facebook.com/v18.0/${postId}/comments`
-          
-          const commentResponse = await fetch(commentUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: comment,
-              access_token: accessToken,
-            }),
-          })
-
-          const commentResult = await commentResponse.json()
-          
-          if (commentResponse.ok && commentResult.id) {
-            postedComments.push(commentResult.id)
-            debugInfo.push(`✓ Comment ${i + 1}: ${comment.substring(0, 30)}...`)
-          } else {
-            failedComments.push(comment)
-            debugInfo.push(`✗ Comment ${i + 1} failed: ${JSON.stringify(commentResult.error || 'unknown')}`)
-          }
-
-          await new Promise(resolve => setTimeout(resolve, 1500))
-          
-        } catch (err) {
-          failedComments.push(comment)
-          debugInfo.push(`✗ Comment ${i + 1} error: ${err}`)
-        }
-      }
+      debugInfo.push(`✓ Text-only post: ${postId}`)
     }
 
     return NextResponse.json({
       success: true,
-      postId: postId,
-      commentsPosted: postedComments.length,
-      commentsFailed: failedComments.length,
+      postId,
+      imageUsed: imageUrl,
       debug: debugInfo,
-      message: `Posted successfully! ${postedComments.length} comments added.`
+      message: `Posted successfully with ${topic ? 'topic-based' : 'default'} background image!`
     })
 
   } catch (error) {
-    console.error('Error:', error)
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

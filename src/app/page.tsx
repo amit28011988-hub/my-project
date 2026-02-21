@@ -2017,12 +2017,12 @@ Save this thread for later 📌`
                       setIsPostingNow(true)
                       
                       try {
-                        // Split thread into main post and comments
+                        // Split thread into main post and bullet points
                         const lines = currentThread.split('\n').filter((l: string) => l.trim())
                         const mainPost = lines[0]
-                        const comments = lines.slice(1)
+                        const bulletPoints = lines.slice(1)
                         
-                        // Post to Facebook (API handles image generation internally)
+                        // Post to Facebook (all content goes in main post)
                         const response = await fetch('/api/facebook/post', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
@@ -2031,15 +2031,15 @@ Save this thread for later 📌`
                             accessToken: facebookConfig.accessToken,
                             message: mainPost,
                             topic: threadTopic,
-                            comments: comments
+                            comments: bulletPoints
                           })
                         })
                         
                         const result = await response.json()
                         if (result.success) {
-                          alert(`✓ ${result.message}\n\nDebug info:\n${result.debug?.join('\n')}`)
+                          alert(`✅ ${result.message}\n\n📱 Check your Facebook page to see the post!`)
                         } else {
-                          alert(`✗ Failed: ${result.error}\n\nDebug: ${result.debug?.join('\n')}`)
+                          alert(`❌ Failed: ${result.error}`)
                         }
                       } catch (error) {
                         alert('Failed to post. Please check your connection.')
