@@ -44,56 +44,56 @@ const trendingCategories = [
   {
     name: 'AI & Technology',
     topics: [
-      'AI replacing jobs in 2024',
-      'ChatGPT and business automation',
+      'AI replacing jobs in 2026',
+      'ChatGPT-5 and business automation',
       'AI in healthcare revolution',
-      'Machine learning in finance',
-      'AI ethics and regulations',
-      'Generative AI tools',
-      'AI-powered marketing',
-      'The future of work with AI',
+      'AGI developments and impact',
+      'AI ethics and regulations 2026',
+      'AI-powered marketing automation',
+      'The future of work with AI agents',
+      'AI coding assistants changing software development',
     ],
     imagePrompt: 'Futuristic AI technology background, neural network visualization, glowing blue and cyan digital circuits, artificial intelligence concept, abstract tech patterns, professional social media background, dark theme with bright accents',
   },
   {
     name: 'Finance & Markets',
     topics: [
-      'Stock market trends 2024',
-      'Crypto market updates',
-      'Interest rates impact',
-      'Real estate investing tips',
-      'Passive income strategies',
-      'Recession preparation',
-      'Federal Reserve decisions',
-      'Global market analysis',
+      'Stock market trends 2026',
+      'Bitcoin and crypto market updates',
+      'Interest rates and inflation impact',
+      'Real estate investing strategies',
+      'Passive income with AI tools',
+      'Global recession indicators',
+      'Federal Reserve policy changes',
+      'Emerging market opportunities',
     ],
     imagePrompt: 'Professional finance background, stock market charts with green and red candles, money flow visualization, dark background with golden accents, wealth and investment concept, elegant corporate style, trading floor atmosphere',
   },
   {
     name: 'Geopolitics',
     topics: [
-      'Global trade relations',
-      'US-China economic ties',
-      'EU policy changes',
-      'Emerging markets growth',
-      'Supply chain shifts',
-      'Energy sector dynamics',
-      'International sanctions impact',
-      'Diplomatic relations update',
+      'US-China trade relations 2026',
+      'BRICS expansion impact on global economy',
+      'EU policy changes and regulations',
+      'Supply chain shifts and reshoring',
+      'Energy sector and green transition',
+      'India rising as economic powerhouse',
+      'Middle East geopolitical tensions',
+      'Global sanctions and their effects',
     ],
     imagePrompt: 'World map with glowing connection lines, geopolitical concept, globe with digital network, dark navy blue background, international relations visualization, professional news style background, corporate and serious tone',
   },
   {
     name: 'Defence & Security',
     topics: [
-      'Defence technology advances',
-      'Cybersecurity threats 2024',
-      'Military innovation',
-      'Global security challenges',
-      'Aerospace defence systems',
-      'Drone technology evolution',
-      'National security strategies',
-      'Defence industry trends',
+      'AI in modern warfare and defence',
+      'Cybersecurity threats 2026',
+      'Drone technology in military',
+      'Space defence and satellite security',
+      'Hypersonic weapons development',
+      'Electronic warfare capabilities',
+      'NATO expansion and global security',
+      'Autonomous weapons systems debate',
     ],
     imagePrompt: 'Military technology background, stealth aircraft silhouette, radar and defence systems, dark tactical colors with green accents, security concept, professional defence industry style, abstract geometric military patterns',
   },
@@ -1963,8 +1963,11 @@ Save this thread for later 📌`
                   <label className="block text-sm font-medium mb-2">Select Topic Category</label>
                   <select
                     className="w-full py-2 px-3 border border-gray-200 rounded-lg focus:outline-none focus:border-black"
-                    value={scheduleForm.topic}
-                    onChange={(e) => setScheduleForm({ ...scheduleForm, topic: e.target.value })}
+                    value={threadTopic}
+                    onChange={(e) => {
+                      setThreadTopic(e.target.value)
+                      setScheduleForm({ ...scheduleForm, topic: e.target.value })
+                    }}
                   >
                     <option value="">-- Select a trending topic --</option>
                     {trendingCategories.map((cat) => (
